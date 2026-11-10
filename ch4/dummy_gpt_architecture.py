@@ -1,5 +1,7 @@
 import torch
 from torch import nn
+import tiktoken
+
 GPT_CONFIG_124M = {
     "vocab_size": 50257,    # Vocabulary size
     "context_length": 1024, # Context length
@@ -22,7 +24,7 @@ class DummyGPTModel(nn.Module):
         self.final_norm = DummyLayerNorm(cfg)
         # 线性输出层
         self.out_head = nn.Linear(
-            cfg["emb_dim"], cfg["num_heads"], bias=False
+            cfg["emb_dim"], cfg["vocab_size"], bias=False
         )
 
     def forward(self, in_idx):
@@ -50,3 +52,20 @@ class DummyLayerNorm(nn.Module):
 
     def forward(self, x):
         return x
+
+tokenizer = tiktoken.get_encoding("gpt2")
+batch = []
+txt_1 = "Every effort moves you"
+txt_2 = "Every day holds a"
+
+batch.append(torch.tensor(tokenizer.encode(txt_1)))
+batch.append(torch.tensor(tokenizer.encode(txt_2)))
+
+batch = torch.stack(batch, dim=0)
+print(batch)
+
+torch.manual_seed(123)
+model = DummyGPTModel(GPT_CONFIG_124M)
+logits = model(batch)
+print("Output shape:", logits.shape)
+print(logits)
