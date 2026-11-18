@@ -4,7 +4,8 @@ import tiktoken
 
 from ch4.layer_norm import LayerNorm
 from ch4.transformer import TransformerBlock
-from ch4.gpt_cfg import GPT_CONFIG_124M
+from ch4.gpt_cfg import GPT_CONFIG_MEDIUM
+
 
 class GPTModel(nn.Module):
     def __init__(self, cfg):
@@ -31,22 +32,45 @@ class GPTModel(nn.Module):
         logits = self.out_head(x)
         return logits
 
+# idx是当前文本的索引数组, (batch, n_tokens)
+def generate_text_simple(model, idx, max_new_tokens, context_size):
+    # 截断，如果输入文本长度为10, llm仅支持长度为5的文本, 则只有最后5个token会被输入
+    for _ in range(max_new_tokens):
+        idx_cond = idx[:, -context_size:]
+        with torch.no_grad():
+            logits = model(idx_cond)
+
+        logits = logits[:, -1, :]
+        probas = torch.softmax(logits, dim=-1)
+        idx_next = torch.argmax(probas, dim=-1, keepdim=True)
+        idx = torch.cat((idx, idx_next), dim=-1)
+
+    return idx
+
 if __name__ == "__main__":
     tokenizer = tiktoken.get_encoding("gpt2")
-    batch = []
-    txt_1 = "Every effort moves you"
-    txt_2 = "Every day holds a"
-
-    batch.append(torch.tensor(tokenizer.encode(txt_1)))
-    batch.append(torch.tensor(tokenizer.encode(txt_2)))
-
-    batch = torch.stack(batch, dim=0)
     torch.manual_seed(123)
-    model = GPTModel(GPT_CONFIG_124M)
-    out = model(batch)
-    print("Input batch:\n", batch)
-    print("\nOutput shape:", out.shape)
-    print(out)
 
-    total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    model_med = GPTModel(GPT_CONFIG_MEDIUM)
+    total_params = sum(p.numel() for p in model_med.parameters() if p.requires_grad)
     print("Total parameters:", total_params)
+
+    start_context = "Hello, I am"
+    encoded = tokenizer.encode(start_context)
+    print("encoded:", encoded)
+    # 添加batch维度, 形状变为(1,4)
+    encoded_tensor = torch.tensor(encoded).unsqueeze(0)
+    print("encoded_tensor.shape:", encoded_tensor.shape)
+
+    model_med.eval()
+    out = generate_text_simple(
+        model=model_med,
+        idx=encoded_tensor,
+        max_new_tokens=6,
+        context_size=GPT_CONFIG_MEDIUM["context_length"],
+    )
+    print("output", out)
+    print("output length:", len(out[0]))
+
+    decoded_text = tokenizer.decode(out.squeeze(0).tolist())
+    print("decoded_text:", decoded_text)
