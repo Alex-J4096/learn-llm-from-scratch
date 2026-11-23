@@ -13,3 +13,14 @@ __pycache__/
 
 # model
 *.pth
+
+# dataset
+*.zip
+# Downloaded model checkpoints
+/ch5/gpt2/
+
+# Downloaded and prepared datasets
+/ch6/sms_spam_collection/
+/ch6/train.csv
+/ch6/validation.csv
+/ch6/test.csv
