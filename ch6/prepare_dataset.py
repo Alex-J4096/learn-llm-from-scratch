@@ -92,6 +92,27 @@ class SpamDataset(Dataset):
             torch.tensor(label, dtype=torch.long)
         )
 
+def create_data_loaders(data_dir=Path(__file__).resolve().parent, batch_size=8):
+    """从 CSV 创建并返回训练、验证和测试 DataLoader。"""
+    data_dir = Path(data_dir)
+    tokenizer = tiktoken.get_encoding("gpt2")
+    train_dataset = SpamDataset(data_dir / "train.csv", tokenizer)
+    validation_dataset = SpamDataset(
+        data_dir / "validation.csv", tokenizer, max_length=train_dataset.max_length
+    )
+    test_dataset = SpamDataset(
+        data_dir / "test.csv", tokenizer, max_length=train_dataset.max_length
+    )
+
+    torch.manual_seed(123)
+    train_loader = DataLoader(
+        train_dataset, batch_size=batch_size, shuffle=True, drop_last=True
+    )
+    validation_loader = DataLoader(validation_dataset, batch_size=batch_size)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size)
+    return train_loader, validation_loader, test_loader
+
+
 if __name__ == "__main__":
     # try:
     #     download_and_unzip_spam_data(url, zip_path, extracted_path, data_file_path)
@@ -115,34 +136,8 @@ if __name__ == "__main__":
     # validation_df.to_csv("validation.csv", index=None)
     # test_df.to_csv("test.csv", index=None)
 
-    tokenizer = tiktoken.get_encoding("gpt2")
-    # print(tokenizer.encode("<|endoftext|>", allowed_special={"<|endoftext|>"}))
-
-    train_dataset = SpamDataset(csv_file="train.csv", max_length=None, tokenizer=tokenizer)
-    print(train_dataset.max_length)
-
-    validate_dataset = SpamDataset(csv_file="validation.csv", max_length=train_dataset.max_length, tokenizer=tokenizer)
-    test_dataset = SpamDataset(csv_file="test.csv", max_length=train_dataset.max_length, tokenizer=tokenizer)
-
-    batch_size = 8
-    torch.manual_seed(123)
-
-    train_loader = DataLoader(
-        dataset=train_dataset,
-        batch_size=batch_size,
-        shuffle=True,
-        drop_last=True
-    )
-    validation_loader = DataLoader(
-        dataset=validate_dataset,
-        batch_size=batch_size,
-        drop_last=False
-    )
-    test_loader = DataLoader(
-        dataset=test_dataset,
-        batch_size=batch_size,
-        drop_last=False
-    )
+    train_loader, validation_loader, test_loader = create_data_loaders()
+    print(train_loader.dataset.max_length)
 
     for input_batch, target_batch in train_loader:
         pass
